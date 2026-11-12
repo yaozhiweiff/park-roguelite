@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#fdf5df">
+    <title>开园啦！</title>
+  </head>
+  <body>
+    <main class="level-menu" id="level-menu" aria-label="关卡选择">
+      <header class="menu-hero">
+        <div class="hero-art" aria-hidden="true">
+          <span class="hero-cloud cloud-one"></span><span class="hero-cloud cloud-two"></span>
+          <span class="art" data-art="wheel"></span>
+          <span class="art" data-art="coaster"></span>
+          <span class="art" data-art="carousel"></span>
+        </div>
+        <h1><span class="art" data-art="ticket" aria-hidden="true"></span>开园啦！</h1>
+        <p id="level-progress"></p>
+      </header>
+      <div class="level-groups" id="level-groups"></div>
+      <dialog id="level-detail" class="settlement" aria-labelledby="level-title">
+        <h2 id="level-title"></h2>
+        <p class="report-note" id="level-summary"></p>
+        <div class="level-trait" id="level-trait"></div>
+        <div class="report" id="level-goals"></div>
+        <button class="open" id="enter-level" type="button">进入关卡</button>
+        <form method="dialog"><button class="quiet-button" type="submit">返回选关</button></form>
+      </dialog>
+    </main>
+    <main class="park" id="park" aria-label="开园啦！" hidden>
+      <section class="map" id="map" aria-label="游乐园地图">
+        <canvas id="world" aria-hidden="true"></canvas>
+        <header class="hud">
+          <button id="back-to-levels" class="back-to-levels" type="button" aria-label="返回选关">‹</button>
+          <h1>开园啦！</h1>
+          <span class="day" id="day"></span>
+          <span class="wallet"><span class="art" data-art="coin" aria-hidden="true"></span><output id="wallet" aria-label="可用金币"></output><button class="money-help" id="money-help" type="button" aria-label="查看金币利息与涨价">!</button></span>
+        </header>
+        <div class="park-status">
+          <div id="active-buffs" class="active-buffs" aria-label="关卡特性与已生效的 BUFF"></div>
+          <button type="button" class="goal-chip" id="show-goals" aria-label="查看关卡目标"></button>
+        </div>
+        <div id="labels" class="labels"></div>
+        <div id="effects" class="effects" aria-hidden="true"></div>
+        <div id="guest-moods" class="guest-moods" aria-label="游客表情与属性进度"></div>
+        <p class="map-notice" id="map-notice" hidden></p>
+      </section>
+      <section class="tray" aria-label="营业面板">
+        <div class="forecast">
+          <div><span id="guest-caption">今日游客</span><strong id="guest-count"></strong></div>
+          <div><span id="revenue-caption">预计营收</span><strong id="revenue"></strong></div>
+        </div>
+        <nav class="shop-nav" id="shop-nav" aria-label="购买与仓库" hidden>
+          <button type="button" id="shop-tab">商店</button>
+          <button type="button" id="stock-tab">仓库</button>
+          <button type="button" id="refresh-shop">刷新 200</button>
+          <button type="button" id="buy-all">全买</button>
+        </nav>
+        <div class="draft" id="draft"></div>
+        <p class="hint" id="hint" role="status"></p>
+        <button class="open" id="open" type="button">开园营业</button>
+      </section>
+      <dialog id="settlement" class="settlement" aria-labelledby="settlement-title">
+        <h2 id="settlement-title"></h2>
+        <div id="earned-stars" class="earned-stars" hidden></div>
+        <div class="report" id="report"></div>
+        <figure id="souvenir" class="souvenir" hidden><img alt="爆米花挡住了一位游客的脸"></figure>
+        <p id="report-note" class="report-note"></p>
+        <button class="open" id="continue" type="button"></button>
+        <button id="replay-level" class="quiet-button" type="button" hidden>再玩本关</button>
+      </dialog>
+      <dialog id="buff-detail" class="settlement" aria-labelledby="buff-title">
+        <h2 id="buff-title"></h2>
+        <p id="buff-description" class="report-note"></p>
+        <form method="dialog"><button class="open" type="submit">知道了</button></form>
+      </dialog>
+      <dialog id="park-goals" class="settlement" aria-labelledby="park-goals-title">
+        <h2 id="park-goals-title">本关星级目标</h2>
+        <div class="report" id="park-goals-report"></div>
+        <form method="dialog"><button class="open" type="submit">知道了</button></form>
+      </dialog>
+      <dialog id="leave-level" class="settlement" aria-labelledby="leave-title">
+        <h2 id="leave-title">返回选关？</h2>
+        <p class="report-note">离开后，本次经营会重新开始。</p>
+        <form method="dialog"><button class="open" type="submit">继续经营</button></form>
+        <button class="quiet-button" type="button" id="confirm-leave">返回选关</button>
+      </dialog>
+      <dialog id="money-rules" class="settlement money-rules" aria-labelledby="money-title">
+        <h2 id="money-title">金币规则</h2>
+        <p>开园时剩下的金币产生 <b>10% 利息</b>，向下取整，下一轮开店时到账。</p>
+        <p>商品价格每轮上涨 <b>5%</b>，按首轮价格累计计算后四舍五入。</p>
+        <div class="report" id="money-report"></div>
+        <form method="dialog"><button class="open" type="submit">知道了</button></form>
+      </dialog>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
