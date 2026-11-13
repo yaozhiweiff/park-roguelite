@@ -8,25 +8,25 @@
   </head>
   <body>
     <main class="level-menu" id="level-menu" aria-label="关卡选择">
-      <header class="menu-hero">
-        <div class="hero-art" aria-hidden="true">
-          <span class="hero-cloud cloud-one"></span><span class="hero-cloud cloud-two"></span>
-          <span class="art" data-art="wheel"></span>
-          <span class="art" data-art="coaster"></span>
-          <span class="art" data-art="carousel"></span>
+      <section class="level-landscape" aria-label="游乐园关卡地图">
+        <header class="menu-hero">
+          <h1><span class="art" data-art="ticket" aria-hidden="true"></span>开园啦！</h1>
+          <p id="level-progress"></p>
+        </header>
+        <nav class="level-markers" id="level-markers" aria-label="选择关卡"></nav>
+      </section>
+      <section class="level-sheet" aria-labelledby="level-title">
+        <div class="level-heading" aria-live="polite">
+          <div>
+            <h2 id="level-title"></h2>
+            <p id="level-summary"></p>
+          </div>
+          <div id="level-best" class="level-best"></div>
         </div>
-        <h1><span class="art" data-art="ticket" aria-hidden="true"></span>开园啦！</h1>
-        <p id="level-progress"></p>
-      </header>
-      <div class="level-groups" id="level-groups"></div>
-      <dialog id="level-detail" class="settlement" aria-labelledby="level-title">
-        <h2 id="level-title"></h2>
-        <p class="report-note" id="level-summary"></p>
         <div class="level-trait" id="level-trait"></div>
-        <div class="report" id="level-goals"></div>
+        <div class="level-goals" id="level-goals" aria-label="星级所需累计营收"></div>
         <button class="open" id="enter-level" type="button">进入关卡</button>
-        <form method="dialog"><button class="quiet-button" type="submit">返回选关</button></form>
-      </dialog>
+      </section>
     </main>
     <main class="park" id="park" aria-label="开园啦！" hidden>
       <section class="map" id="map" aria-label="游乐园地图">

@@ -80,19 +80,30 @@ function goalsMarkup(candidate) {
   return candidate.thresholds.map((target, index) => reportItem(`${index + 1} 星`, format(target) + " 金币")).join("");
 }
 
+// The percentages match the walkway in level-park.jpg, starting at the front gate.
+const markerPositions = [
+  [31, 86], [56, 77], [33, 69], [23, 59], [49, 55],
+  [74, 48], [51, 41], [31, 35], [65, 29], [56, 19],
+];
+const levelMarkers = new Map();
+
 function inspectLevel(candidate) {
   selectedLevel = candidate;
   const trait = traitInfo(candidate.trait);
+  const stars = progress[candidate.id] ?? 0;
+  for (const [id, button] of levelMarkers) button.setAttribute("aria-pressed", String(id === candidate.id));
   $("level-title").textContent = `第 ${candidate.id} 关 · ${candidate.title}`;
-  $("level-summary").textContent = `${candidate.map.title} · 营业 ${candidate.days} 天 · 共 ${candidate.visitors} 位游客`;
-  $("level-trait").innerHTML = `${icon(trait.art)}<div><strong>${trait.title}</strong><span>${trait.description}</span></div>`;
-  $("level-goals").innerHTML = goalsMarkup(candidate);
+  $("level-summary").textContent = `${candidate.map.title} · ${candidate.days} 天 · ${candidate.visitors} 位游客`;
+  $("level-best").innerHTML = `<span>最高星级</span>${starsMarkup(stars)}`;
+  $("level-trait").innerHTML = `${icon(trait.art)}<div><strong>初始 BUFF · ${trait.title}</strong><span>${trait.description}</span></div>`;
+  $("level-goals").innerHTML = candidate.thresholds.map((target, index) =>
+    `<div><span><i aria-hidden="true">★</i> ${index + 1} 星</span>
+      <strong>${format(target)} <small>金币</small></strong></div>`).join("");
   $("enter-level").disabled = !unlocked(candidate);
-  $("enter-level").textContent = unlocked(candidate) ? "进入关卡" : "上一关获得 1 星后解锁";
-  $("level-detail").showModal();
+  $("enter-level").textContent = unlocked(candidate) ? "进入关卡" : `第 ${candidate.id - 1} 关获得 1 星后解锁`;
 }
 
-function showMenu() {
+function showMenu(preferredLevel) {
   phase = "menu";
   view?.finish();
   clearGuestMoods();
@@ -100,30 +111,26 @@ function showMenu() {
   $("park").hidden = true;
   $("level-menu").hidden = false;
   const stars = Object.values(progress);
-  $("level-progress").textContent = `已通关 ${stars.length} / 10 · 共 ${stars.reduce((sum, count) => sum + count, 0)} 星`;
-  const sections = [];
-  for (const map of new Set(levels.map((candidate) => candidate.map))) {
-    const section = document.createElement("section");
-    section.className = "level-group";
-    section.dataset.map = map.id;
-    const heading = document.createElement("h2");
-    heading.textContent = map.title;
-    section.append(heading);
-    const grid = document.createElement("div");
-    grid.className = "level-grid";
-    for (const candidate of levels.filter((item) => item.map === map)) {
-      const locked = !unlocked(candidate);
-      const button = uiButton("", () => inspectLevel(candidate), "level-card");
-      button.classList.toggle("locked", locked);
-      button.setAttribute("aria-label", `第 ${candidate.id} 关，${candidate.title}，${locked ? "未解锁" : `最高 ${progress[candidate.id] ?? 0} 星`}`);
-      button.innerHTML = `<span class="level-number">${String(candidate.id).padStart(2, "0")}</span><strong>${candidate.title}</strong>
-        <span class="level-gold">${icon("coin")}${format(candidate.goal)}</span>${starsMarkup(progress[candidate.id] ?? 0)}`;
-      grid.append(button);
-    }
-    section.append(grid);
-    sections.push(section);
-  }
-  $("level-groups").replaceChildren(...sections);
+  const starCount = stars.reduce((sum, count) => sum + count, 0);
+  $("level-progress").textContent = `★ ${starCount} / ${levels.length * 3}`;
+  $("level-progress").setAttribute("aria-label", `累计 ${starCount} 星，共 ${levels.length * 3} 星`);
+  levelMarkers.clear();
+  const buttons = levels.map((candidate, index) => {
+    const locked = !unlocked(candidate);
+    const best = progress[candidate.id] ?? 0;
+    const [x, y] = markerPositions[index];
+    const button = uiButton("", () => inspectLevel(candidate), "level-marker");
+    button.classList.toggle("locked", locked);
+    button.dataset.map = candidate.map.id;
+    button.style.setProperty("--marker-x", `${x}%`);
+    button.style.setProperty("--marker-y", `${y}%`);
+    button.setAttribute("aria-label", `第 ${candidate.id} 关，${candidate.title}，最高 ${best} 星${locked ? "，未解锁" : ""}`);
+    button.innerHTML = `<span class="marker-pin" aria-hidden="true">${candidate.id}</span>${starsMarkup(best)}`;
+    levelMarkers.set(candidate.id, button);
+    return button;
+  });
+  $("level-markers").replaceChildren(...buttons);
+  inspectLevel(preferredLevel ?? levels.find((candidate) => unlocked(candidate) && !progress[candidate.id]) ?? levels.at(-1));
 }
 
 function buildLabels() {
@@ -825,7 +832,10 @@ open.addEventListener("click", () => {
 
 $("continue").addEventListener("click", () => {
   settlement.close();
-  if (day === level.days) showMenu();
+  if (day === level.days) {
+    const next = levels[level.id];
+    showMenu(next && progress[level.id] ? next : level);
+  }
   else {
     wallet += interestDue;
     lastInterest = interestDue;
@@ -839,13 +849,12 @@ $("replay-level").addEventListener("click", () => {
   freshGame(level);
 });
 $("enter-level").addEventListener("click", () => {
-  $("level-detail").close();
   freshGame(selectedLevel);
 });
 $("back-to-levels").addEventListener("click", () => $("leave-level").showModal());
 $("confirm-leave").addEventListener("click", () => {
   $("leave-level").close();
-  showMenu();
+  showMenu(level);
 });
 $("show-goals").addEventListener("click", () => {
   $("park-goals-report").innerHTML = goalsMarkup(level);
