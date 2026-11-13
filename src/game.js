@@ -129,8 +129,10 @@ export const moods = [
   { id: "happy", label: "开心", range: "100+", coins: 200 },
 ];
 
+const happyThreshold = 100;
+
 export function moodFor(score) {
-  if (score >= 100) return moods[2];
+  if (score >= happyThreshold) return moods[2];
   if (score >= 50) return moods[1];
   return moods[0];
 }
@@ -218,11 +220,13 @@ function planTours(layout, level, ranks, activeBuffs) {
     const weights = children.map((child) => 1 + Number(child.gates > 0) +
       (activeBuffs.has("flags") ? (child.hits - least) * 3 : 0));
     const sharedExit = lane.to === "exit";
+    const score = total(state.stats);
     return {
       lane, stops, children, weights,
       hits: sharedExit ? 0 : hits + Math.max(0, ...children.map((child) => child.hits)),
       gates: sharedExit ? 0 : gates + Math.max(0, ...children.map((child) => child.gates)),
-      mood: moodFor(total(state.stats)),
+      mood: moodFor(score),
+      happyBonus: Math.max(0, Math.floor(score - happyThreshold)),
     };
   }
 
@@ -235,7 +239,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
   const { first, initialScore } = planTours(layout, level, ranks, activeBuffs);
   const results = {
     count, routes: Object.fromEntries(map.badges.map(([id]) => [id, 0])),
-    revenue: 0, moods: emptyMoodCounts(), visits: {}, photoGag: false,
+    revenue: 0, happyBonus: 0, moods: emptyMoodCounts(), visits: {}, photoGag: false,
   };
   const guests = [];
   const events = [];
@@ -243,7 +247,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
 
   function distribute(tour, amount, path) {
     if (!amount) return;
-    const { lane, stops, children, weights, mood } = tour;
+    const { lane, stops, children, weights, mood, happyBonus } = tour;
     const itinerary = show ? [...path, tour] : null;
     if (lane.id in results.routes) results.routes[lane.id] += amount;
     for (const event of stops) {
@@ -253,9 +257,11 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
       }
     }
     if (!children.length) {
-      results.revenue += mood.coins * amount;
+      const coins = mood.coins + happyBonus;
+      results.revenue += coins * amount;
+      results.happyBonus += happyBonus * amount;
       results.moods[mood.id] += amount;
-      if (show) for (let index = 0; index < amount; index++) guests.push({ itinerary, mood });
+      if (show) for (let index = 0; index < amount; index++) guests.push({ itinerary, mood, coins });
       return;
     }
     const combined = weights.reduce((sum, weight) => sum + weight, 0);
@@ -320,7 +326,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
       }
       travel(end);
     });
-    events.push({ type: "exit", time, guest: index, coins: guest.mood.coins });
+    events.push({ type: "exit", time, guest: index, coins: guest.coins });
     Object.assign(guest, { index, start, member, group, segments, initialScore, end: time });
     delete guest.itinerary;
   });

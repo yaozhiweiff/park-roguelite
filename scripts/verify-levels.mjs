@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cards, deal, interestFor, levels, maxRank, priceOf, refreshPrice, simulate, starsFor, startingCoins } from "../src/game.js";
+import { cards, deal, interestFor, levels, maxRank, moods, priceOf, refreshPrice, simulate, starsFor, startingCoins } from "../src/game.js";
 import { pathX } from "../src/maps.js";
 
 const solutions = JSON.parse(readFileSync(new URL("./three-star-runs.json", import.meta.url)));
@@ -51,6 +51,8 @@ for (const { id, revenue: recordedRevenue, replay } of solutions) {
     assert.equal(exits.length, forecast.count);
     assert.equal(new Set(exits.map((event) => event.guest)).size, forecast.count);
     assert.equal(exits.reduce((sum, event) => sum + event.coins, 0), forecast.revenue);
+    const baseRevenue = moods.reduce((sum, mood) => sum + forecast.moods[mood.id] * mood.coins, 0);
+    assert.equal(forecast.revenue, baseRevenue + forecast.happyBonus);
     for (const [route, count] of Object.entries(forecast.routes)) {
       assert.equal(wave.events.filter((event) => event.type === "branch" && event.route === route).length, count);
     }
@@ -79,6 +81,14 @@ for (const { id, revenue: recordedRevenue, replay } of solutions) {
 }
 
 const testLevel = levels[0];
+for (const [score, payout] of [[99, 150], [100, 200], [100.5, 200], [101, 201], [125.5, 225]]) {
+  const level = { ...testLevel, trait: { stat: "joy", points: score } };
+  const { results, events } = simulate({}, level, 1, {}, new Set(), true);
+  assert.equal(results.revenue, results.count * payout);
+  assert.equal(results.happyBonus, results.count * Math.max(0, payout - 200));
+  assert.ok(events.filter((event) => event.type === "exit").every((event) => event.coins === payout));
+}
+
 for (let refreshes = 0; refreshes < 30; refreshes++) {
   const offers = deal(testLevel, 1, refreshes, { coaster: maxRank }, new Set(["relay"]));
   assert.equal(new Set(offers).size, 3);

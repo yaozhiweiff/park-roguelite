@@ -158,7 +158,7 @@ function freshGame(candidate) {
   level = candidate;
   day = 1;
   wallet = startingCoins;
-  runTotals = { revenue: 0, moods: emptyMoodCounts() };
+  runTotals = { revenue: 0, happyBonus: 0, moods: emptyMoodCounts() };
   layout = {};
   stock = level.trait.gift ? [level.trait.gift] : [];
   ranks = level.trait.gift ? { [level.trait.gift]: 1 } : {};
@@ -800,6 +800,7 @@ function endDay() {
   phase = "settled";
   wallet += result.revenue;
   runTotals.revenue += result.revenue;
+  runTotals.happyBonus += result.happyBonus;
   for (const mood of moods) runTotals.moods[mood.id] += result.moods[mood.id];
   view?.finish();
   clearGuestMoods();
@@ -829,6 +830,7 @@ function endDay() {
     reportItem(final ? "本关累计营收" : "今日营收", format(breakdown.revenue)),
     final ? reportItem("1 星目标", format(level.goal)) : reportItem("本关累计", format(runTotals.revenue)),
     ...moods.map((mood) => reportMood(mood, breakdown.moods[mood.id])),
+    `<div class="happy-bonus"><span>开心额外收入</span><strong>+${format(breakdown.happyBonus)} 金币</strong></div>`,
     final ? reportItem("可用金币", format(wallet)) : reportItem("下轮到账利息", `+${format(interestDue)}`),
   ].join("");
   const highlights = Object.entries(result.visits)
