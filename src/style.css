@@ -636,13 +636,18 @@ button:disabled { cursor: default; }
 .mood-rate { color: #655f46; font-size: 11px; white-space: nowrap; }
 .mood-subtotal { text-align: right; font-variant-numeric: tabular-nums; }
 .report .happy-bonus {
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: -4px;
-  padding: 4px 8px 4px 39px;
+  padding: 1px 8px 1px 39px;
   background: #fff1ca;
   color: #795026;
   font-size: 11px;
 }
+.happy-bonus-label { display: inline-flex; align-items: center; gap: 4px; }
+.happy-bonus .money-help { width: 27px; height: 27px; margin: 0; }
 .happy-bonus strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+#happy-bonus-note { flex-basis: 100%; margin: 0 0 5px; font-size: 12px; line-height: 1.5; }
 .souvenir {
   width: 138px;
   margin: 10px auto 0;

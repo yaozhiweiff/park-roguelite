@@ -830,9 +830,22 @@ function endDay() {
     reportItem(final ? "本关累计营收" : "今日营收", format(breakdown.revenue)),
     final ? reportItem("1 星目标", format(level.goal)) : reportItem("本关累计", format(runTotals.revenue)),
     ...moods.map((mood) => reportMood(mood, breakdown.moods[mood.id])),
-    `<div class="happy-bonus"><span>开心额外收入</span><strong>+${format(breakdown.happyBonus)} 金币</strong></div>`,
+    `<div class="happy-bonus">
+      <span class="happy-bonus-label">开心额外收入
+        <button id="happy-bonus-help" class="money-help" type="button"
+          aria-label="开心额外收入说明" aria-expanded="false" aria-controls="happy-bonus-note">!</button>
+      </span>
+      <strong>+${format(breakdown.happyBonus)} 金币</strong>
+      <p id="happy-bonus-note" hidden>游客达到开心后，超过 100 分的部分每满 1 分，额外获得 1 金币。</p>
+    </div>`,
     final ? reportItem("可用金币", format(wallet)) : reportItem("下轮到账利息", `+${format(interestDue)}`),
   ].join("");
+  const bonusHelp = $("happy-bonus-help");
+  const bonusNote = $("happy-bonus-note");
+  bonusHelp.addEventListener("click", () => {
+    bonusNote.hidden = !bonusNote.hidden;
+    bonusHelp.setAttribute("aria-expanded", String(!bonusNote.hidden));
+  });
   const highlights = Object.entries(result.visits)
     .filter(([id]) => cards[id].needs)
     .map(([id, visitors]) => `${cards[id].title}触发 ${visitors} 人`);
