@@ -486,6 +486,59 @@ button:disabled { cursor: default; }
   font-variant-numeric: tabular-nums;
 }
 .shop-price.sold, .shop-price:disabled { background: #f1e8d4; color: #776750; }
+.shop-lock {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  align-items: start;
+  width: 34px;
+  height: 34px;
+  padding: 4px 0 0 4px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+}
+.shop-lock > span {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9bd7d;
+  border-radius: 7px;
+  background: #fff0c6;
+  color: #795427;
+  opacity: .55;
+}
+.shop-lock > span::before, .shop-lock > span::after {
+  position: absolute;
+  content: "";
+}
+.shop-lock > span::before {
+  top: 4px;
+  left: 8px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid currentColor;
+  border-radius: 5px 5px 0 0;
+  transform: translate(2px, -1px);
+}
+.shop-lock > span::after {
+  top: 9px;
+  left: 5px;
+  width: 10px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.shop-lock[aria-pressed="true"] > span {
+  border-color: #9caf72;
+  background: #e4edc7;
+  color: #456331;
+  opacity: 1;
+}
+.shop-lock[aria-pressed="true"] > span::before { left: 6.5px; transform: none; }
 .shop-draggable { cursor: grab; touch-action: none; user-select: none; }
 .shop-draggable.drag-source { cursor: grabbing; opacity: .64; }
 .shop-drag-ghost {

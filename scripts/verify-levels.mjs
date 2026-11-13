@@ -84,3 +84,12 @@ for (let refreshes = 0; refreshes < 30; refreshes++) {
   assert.equal(new Set(offers).size, 3);
   assert.ok(!offers.includes("coaster") && !offers.includes("relay"));
 }
+
+const firstOffers = deal(testLevel, 1, 0, {}, new Set());
+const held = [firstOffers[0], undefined, firstOffers[2]];
+for (const [day, refreshes] of [[1, 1], [2, 0]]) {
+  const refreshed = deal(testLevel, day, refreshes, {}, new Set(), held);
+  assert.equal(refreshed[0], held[0]);
+  assert.equal(refreshed[2], held[2]);
+  assert.equal(new Set(refreshed).size, 3);
+}

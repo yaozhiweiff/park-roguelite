@@ -86,20 +86,22 @@ function random(seed) {
   };
 }
 
-export function deal(level, day, refreshes, ranks, activeBuffs) {
+export function deal(level, day, refreshes, ranks, activeBuffs, held = []) {
   const next = random(Math.imul(level.seed + day * 1429, 27644437) ^ Math.imul(refreshes + 1, 1013904223));
   const facilities = Object.keys(cards).filter((id) => (ranks[id] ?? 0) < maxRank);
   const upgrades = facilities.filter((id) => ranks[id]);
-  const offers = [...facilities, ...Object.keys(buffs).filter((id) => !activeBuffs.has(id))];
-  const chosen = [];
-  while (chosen.length < 3 && offers.length) {
+  const offers = [...facilities, ...Object.keys(buffs).filter((id) => !activeBuffs.has(id))]
+    .filter((id) => !held.includes(id));
+  const chosen = Array.from({ length: 3 }, (_, slot) => held[slot]);
+  for (let slot = 0; slot < chosen.length && offers.length; slot++) {
+    if (chosen[slot]) continue;
     // Facilities already owned have two chances to appear, so upgrading remains viable.
     const weighted = [...offers, ...upgrades.filter((id) => offers.includes(id))];
     const id = weighted[Math.floor(next() * weighted.length)];
-    chosen.push(id);
+    chosen[slot] = id;
     offers.splice(offers.indexOf(id), 1);
   }
-  return chosen;
+  return chosen.filter(Boolean);
 }
 
 export function guestCount(level, day) {

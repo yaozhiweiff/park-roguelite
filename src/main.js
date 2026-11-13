@@ -27,6 +27,7 @@ let layout;
 let stock;
 let options;
 let sold;
+let lockedOffers;
 let panel;
 let focus;
 let reserve;
@@ -162,6 +163,8 @@ function freshGame(candidate) {
   stock = level.trait.gift ? [level.trait.gift] : [];
   ranks = level.trait.gift ? { [level.trait.gift]: 1 } : {};
   activeBuffs = new Set();
+  options = [];
+  lockedOffers = new Set();
   reserve = 0;
   interestDue = 0;
   lastInterest = 0;
@@ -175,7 +178,8 @@ function freshGame(candidate) {
 }
 
 function reroll() {
-  options = deal(level, day, refreshes, ranks, activeBuffs);
+  const held = options.map((id) => lockedOffers.has(id) ? id : undefined);
+  options = deal(level, day, refreshes, ranks, activeBuffs, held);
   sold = new Set();
 }
 
@@ -205,7 +209,10 @@ function payFor(ids) {
   const cost = ids.reduce((sum, id) => sum + priceOf(id, day), 0);
   if (cost > wallet) return false;
   wallet -= cost;
-  ids.forEach((id) => sold.add(id));
+  for (const id of ids) {
+    sold.add(id);
+    lockedOffers.delete(id);
+  }
   return true;
 }
 
@@ -246,12 +253,16 @@ function buyAndPlace(id, slot) {
 
 function refreshShop() {
   const cost = refreshPrice(refreshes);
-  if (phase !== "plan" || panel !== "shop" || wallet < cost) return;
+  if (phase !== "plan" || panel !== "shop" || !canRefreshShop()) return;
   wallet -= cost;
   refreshes++;
   focus = null;
   reroll();
   refresh();
+}
+
+function canRefreshShop() {
+  return lockedOffers.size < 3 && wallet >= refreshPrice(refreshes);
 }
 
 function returnToStock(slot) {
@@ -410,6 +421,17 @@ function drawShopCard(id) {
     label.textContent = "已购";
     item.append(label);
   } else {
+    const lock = uiButton("", () => {
+      if (lockedOffers.has(id)) lockedOffers.delete(id);
+      else lockedOffers.add(id);
+      lock.setAttribute("aria-pressed", String(lockedOffers.has(id)));
+      $("refresh-shop").disabled = !canRefreshShop();
+    }, "shop-lock");
+    lock.setAttribute("aria-label", `锁定${card.title}`);
+    lock.setAttribute("aria-pressed", String(lockedOffers.has(id)));
+    lock.title = "锁定后，刷新和次日开店都会保留此商品";
+    lock.innerHTML = '<span aria-hidden="true"></span>';
+    item.append(lock);
     const priceButton = uiButton(format(price), () => buy([id]), "shop-price", disabled);
     const operation = isBuff ? `购买${card.title}并立即生效` : isUpgrade ? `升级${card.title}至 Lv.${rank}` : `购买${card.title}存入仓库`;
     priceButton.setAttribute("aria-label", `${operation}，${format(price)} 金币`);
@@ -452,7 +474,7 @@ function drawDraft() {
   $("buy-all").textContent = remaining.length ? `全买 ${format(price)}` : "已买齐";
   const cost = refreshPrice(refreshes);
   $("refresh-shop").hidden = !shopping;
-  $("refresh-shop").disabled = wallet < cost;
+  $("refresh-shop").disabled = !canRefreshShop();
   $("refresh-shop").textContent = `刷新 ${format(cost)}`;
   if (focus && focus.source !== "shop") drawDetail();
   else if (panel === "shop" && options.length) options.forEach(drawShopCard);
