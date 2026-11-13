@@ -1,4 +1,5 @@
 import "./style.css";
+import { animateLevelPark } from "./level-park-motion.js";
 import { buffs, cards, deal, emptyMoodCounts, facilityDescription, interestFor, levels, maxRank, moodFor, moods, priceIncrease, priceOf, refreshPrice, simulate, starsFor, startingCoins, strength, traitInfo } from "./game.js";
 import { ParkView } from "./park-view.js";
 
@@ -893,6 +894,7 @@ $("money-help").addEventListener("click", () => {
 settlement.addEventListener("cancel", (event) => event.preventDefault());
 
 showMenu();
+animateLevelPark($("level-park-motion"));
 let previousFrame;
 const firstFrame = performance.now();
 
