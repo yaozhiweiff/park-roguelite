@@ -375,7 +375,7 @@ export class ParkView {
       if (!this.buildings.has(id)) this.buildings.set(id, { ...facility(id), id });
       const model = this.buildings.get(id);
       model.group.position.set(lot.x, 0.025, lot.z);
-      const size = this.map.id === "cascade" ? 0.64 : 0.70;
+      const size = this.map.id === "cascade" ? 0.69 : 0.76;
       model.group.scale.setScalar(id === "coaster" ? size * 0.93 : size);
       this.scene.add(model.group);
       this.facilities.set(lot.id, model);
