@@ -39,7 +39,7 @@ let show;
 let elapsed = 0;
 let speed = 1;
 let nextEvent = 0;
-let seen;
+let exited;
 let sale;
 let photoShown;
 let photo;
@@ -50,7 +50,6 @@ let lastChime = 0;
 
 
 const anchors = new Map();
-const branchBadges = new Map();
 const progressKey = "kai-yuan-la-level-stars";
 const progress = {};
 try {
@@ -137,19 +136,11 @@ function showMenu(preferredLevel) {
 function buildLabels() {
   labels.replaceChildren();
   anchors.clear();
-  branchBadges.clear();
   for (const lot of level.map.lots) {
     const button = uiButton("+", () => tapLot(lot.id), "lot");
     button.dataset.lot = lot.id;
     labels.append(button);
     anchors.set(lot.id, button);
-  }
-  for (const [id, name] of level.map.badges) {
-    const badge = document.createElement("span");
-    badge.className = "branch";
-    badge.innerHTML = `<span>${name}</span><strong>0</strong><span>人</span>`;
-    labels.append(badge);
-    branchBadges.set(id, badge);
   }
 }
 
@@ -511,12 +502,6 @@ function positionLabels() {
     button.style.setProperty("--x", x);
     button.style.setProperty("--y", y);
   }
-  for (const [id, , x, z] of level.map.badges) {
-    const [left, top] = project(x, 0.29, z);
-    const badge = branchBadges.get(id);
-    badge.style.setProperty("--x", left);
-    badge.style.setProperty("--y", top);
-  }
 }
 
 function drawLots() {
@@ -534,10 +519,6 @@ function drawLots() {
   view?.setLayout(layout, phase !== "plan");
   view?.setBuffs(activeBuffs);
   positionLabels();
-}
-
-function routeCounts(counts) {
-  for (const [id, badge] of branchBadges) badge.querySelector("strong").textContent = counts[id] ?? 0;
 }
 
 function showBuff(title, description) {
@@ -578,7 +559,6 @@ function refresh() {
   $("guest-count").textContent = `${preview.count} 人`;
   $("revenue-caption").textContent = "预计营收";
   $("revenue").textContent = format(preview.revenue);
-  routeCounts(preview.routes);
   drawLots();
   drawDraft();
   let hint = "拖到空地购买并摆放 · 点价格存仓库";
@@ -717,8 +697,6 @@ function positionGuestMoods() {
 
 function onEvent(event) {
   if (event.type === "branch") {
-    if (branchBadges.has(event.route)) seen.routes[event.route] = (seen.routes[event.route] ?? 0) + 1;
-    routeCounts(seen.routes);
     if (event.guided) {
       view?.signal(event);
       if (event.guest % 3 === 0) float({ ...event, id: "flags", text: "这边好玩！" });
@@ -728,8 +706,8 @@ function onEvent(event) {
     view?.react({ ...event, id: "farewell" });
   } else if (event.type === "exit") {
     sale += event.coins;
-    seen.exited++;
-    $("guest-count").textContent = `${seen.exited} / ${show.results.count} 人`;
+    exited++;
+    $("guest-count").textContent = `${exited} / ${show.results.count} 人`;
     $("revenue").textContent = format(sale);
     updateGoal();
     if (event.guest % 3 === 0) {
@@ -766,14 +744,13 @@ function startDay() {
   speed = 1;
   nextEvent = 0;
   sale = 0;
-  seen = { routes: {}, exited: 0 };
+  exited = 0;
   photoShown = false;
   show = simulate(layout, level, day, ranks, activeBuffs, true);
   view?.start(show.guests);
   createGuestMoods(show.guests);
   drawLots();
   drawDraft();
-  routeCounts(seen.routes);
   $("guest-caption").textContent = "已离园";
   $("guest-count").textContent = `0 / ${show.results.count} 人`;
   $("revenue-caption").textContent = "今日营收";

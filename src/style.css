@@ -223,13 +223,11 @@ button:disabled { cursor: default; }
   border-width: 0 1px 1.5px;
   border-radius: 0 0 75% 75%;
 }
-.lot, .branch {
+.lot {
   position: absolute;
   left: var(--x, -300px);
   top: var(--y, -300px);
   transform: translate(-50%, -50%);
-}
-.lot {
   pointer-events: auto;
   display: grid;
   place-content: center;
@@ -280,32 +278,6 @@ button:disabled { cursor: default; }
   box-shadow: 0 0 0 3px #377a43, 0 4px 9px #426f2e65;
 }
 .lot.selected { background: #ffdda5; border-color: #eb8d54; color: #80412d; }
-
-.branch {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 7px;
-  border: 1px solid #f3d590;
-  border-radius: 12px;
-  background: #fff4d4;
-  color: #255e38;
-  box-shadow: 0 2px 4px #4b5f2640;
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.branch strong { font-size: 13px; line-height: 1; }
-.branch::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  border: solid transparent;
-  border-width: 5px 3px 0;
-  border-top-color: #fff4d4;
-}
-.branch.left::after { right: 9px; }
-.branch.right::after { left: 9px; }
 
 .map-notice {
   position: absolute;
@@ -900,9 +872,6 @@ button:disabled { cursor: default; }
 .shop-card .buff-art { margin-bottom: 3px; }
 .map[data-map="triple"] .lot:not(.built), .map[data-map="cascade"] .lot:not(.built) { width: 35px; height: 35px; border-radius: 11px; font-size: 23px; }
 .map[data-map="cascade"] .lot.built { min-width: 36px; padding-inline: 4px; font-size: 9px; }
-.map:not([data-map="double"]) .branch { padding: 3px 5px; }
-.map[data-map="cascade"] .branch { gap: 2px; padding-inline: 4px; font-size: 9px; }
-.map[data-map="cascade"] .branch strong { font-size: 11px; }
 .float.flags, .float.bonus { background: #f4e3ff; color: #5e3d86; }
 
 @media (max-width: 350px) {

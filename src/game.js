@@ -238,7 +238,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
   const { map } = level;
   const { first, initialScore } = planTours(layout, level, ranks, activeBuffs);
   const results = {
-    count, routes: Object.fromEntries(map.badges.map(([id]) => [id, 0])),
+    count, routes: Object.fromEntries(map.lanes.filter((lane) => lane.to === "merge").map(({ id }) => [id, 0])),
     revenue: 0, happyBonus: 0, moods: emptyMoodCounts(), visits: {}, photoGag: false,
   };
   const guests = [];
