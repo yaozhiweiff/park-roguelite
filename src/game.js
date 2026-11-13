@@ -36,22 +36,22 @@ export const buffs = {
 };
 
 const levelList = [
-  ["欢乐开张", "double", 5, 72, { stat: "joy", points: 35 }, 904],
-  ["甜甜小径", "double", 5, 89, { stat: "bliss", points: 40 }, 326],
-  ["三岔试胆", "triple", 5, 106, { stat: "thrill", points: 40 }, 547],
-  ["叮当木马", "triple", 6, 124, { gift: "carousel" }, 188],
-  ["花园合照", "triple", 6, 143, { stat: "bliss", points: 45 }, 673],
-  ["惊叫连连", "triple", 6, 161, { gift: "coaster" }, 834],
-  ["乐谷派对", "cascade", 7, 180, { stat: "joy", points: 40 }, 251],
-  ["云上集市", "cascade", 7, 198, { gift: "wheel" }, 462],
-  ["极速乐谷", "cascade", 7, 216, { stat: "thrill", points: 45 }, 756],
-  ["压轴演出", "cascade", 7, 235, { gift: "stage" }, 981],
+  ["欢乐开张", "double", 5, 72, { stat: "joy", points: 35 }, 904, 8800],
+  ["甜甜小径", "double", 5, 89, { stat: "bliss", points: 40 }, 326, 12000],
+  ["三岔试胆", "triple", 5, 106, { stat: "thrill", points: 40 }, 547, 14400],
+  ["叮当木马", "triple", 6, 124, { gift: "carousel" }, 188, 15000],
+  ["花园合照", "triple", 6, 143, { stat: "bliss", points: 45 }, 673, 20200],
+  ["惊叫连连", "triple", 6, 161, { gift: "coaster" }, 834, 21200],
+  ["乐谷派对", "cascade", 7, 180, { stat: "joy", points: 40 }, 251, 24800],
+  ["云上集市", "cascade", 7, 198, { gift: "wheel" }, 462, 27200],
+  ["极速乐谷", "cascade", 7, 216, { stat: "thrill", points: 45 }, 756, 31000],
+  ["压轴演出", "cascade", 7, 235, { gift: "stage" }, 981, 31600],
 ];
 
-export const levels = levelList.map(([title, mapId, days, visitors, trait, seed], index) => {
-  const goal = 8000 + index * 2000;
-  return { id: index + 1, title, map: maps[mapId], days, visitors, trait, seed, goal, thresholds: [goal, goal * 1.25, goal * 1.5] };
-});
+export const levels = levelList.map(([title, mapId, days, visitors, trait, seed, goal], index) => ({
+  id: index + 1, title, map: maps[mapId], days, visitors, trait, seed, goal,
+  thresholds: [goal, goal * 1.25, goal * 1.5],
+}));
 
 export function starsFor(level, revenue) {
   return level.thresholds.filter((goal) => revenue >= goal).length;
