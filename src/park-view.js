@@ -250,6 +250,19 @@ function pad() {
   return group;
 }
 
+function facilityGlowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  const glow = ctx.createRadialGradient(32, 32, 2, 32, 32, 32);
+  glow.addColorStop(0, "rgba(255,255,255,1)");
+  glow.addColorStop(0.36, "rgba(255,255,255,.65)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(canvas);
+}
+
 export class ParkView {
   constructor(canvas, onResize) {
     this.canvas = canvas;
@@ -278,12 +291,16 @@ export class ParkView {
     this.position = new THREE.Vector3();
     this.motion = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     const ringGeometry = new THREE.RingGeometry(0.48, 0.59, 24);
+    const glowTexture = facilityGlowTexture();
     this.signals = Array.from({ length: 6 }, () => {
       const ring = new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ color: 0xffef82, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTexture, color: 0xffd85a, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+      }));
       ring.rotation.x = -Math.PI / 2;
-      ring.visible = false;
-      this.scene.add(ring);
-      return { ring, end: -1 };
+      ring.visible = halo.visible = false;
+      this.scene.add(ring, halo);
+      return { ring, halo, end: -1 };
     });
     this.nextSignal = 0;
     this.resize = new ResizeObserver(() => this.fit());
@@ -343,17 +360,25 @@ export class ParkView {
   }
 
   signal(event) {
-    if (!this.motion) return;
+    if (!this.motion && !event.conditionMet) return;
     if (event.guided) {
       const fork = Object.keys(this.map.nodes).find((id) => this.map.nodes[id][1] === event.z && this.map.nodes[id][0] === event.x);
       const marker = this.stage.flags.get(fork);
       if (marker) marker.end = this.now + 0.55;
       return;
     }
+    const activation = event.conditionMet && this.signals.find((signal) => signal.lot === event.lot && signal.end > this.now);
+    if (activation) {
+      activation.end = this.now + 0.75;
+      return;
+    }
     const signal = this.signals[this.nextSignal++ % this.signals.length];
+    signal.lot = event.conditionMet ? event.lot : null;
     signal.ring.position.set(event.x, 0.14, event.z);
-    signal.ring.material.color.setHex(event.id === "stamps" ? 0xff9bdf : event.relay ? 0x9ef7d0 : 0xffe57e);
-    signal.end = this.now + 0.62;
+    signal.halo.position.set(event.x, 0.82, event.z);
+    signal.ring.material.color.setHex(signal.lot ? 0xfff6a0 : event.id === "stamps" ? 0xff9bdf : event.relay ? 0x9ef7d0 : 0xffe57e);
+    signal.start = this.now;
+    signal.end = this.now + (signal.lot ? 0.75 : 0.62);
   }
 
   project(x, y, z) {
@@ -419,7 +444,10 @@ export class ParkView {
 
   finish() {
     this.guests = null;
-    this.signals.forEach((signal) => { signal.end = -1; signal.ring.visible = false; });
+    this.signals.forEach((signal) => {
+      signal.end = -1;
+      signal.ring.visible = signal.halo.visible = false;
+    });
     this.models.forEach((model) => { model.group.visible = false; });
   }
 
@@ -487,13 +515,22 @@ export class ParkView {
         marker.banner.rotation.y = Math.sin(now * (lit ? 10 : 3)) * (lit ? 0.44 : 0.12);
         marker.banner.scale.setScalar(lit ? 1.15 : 1);
       });
-      for (const { ring, end } of this.signals) {
-        ring.visible = end > now;
-        if (ring.visible) {
-          const life = (end - now) / 0.62;
-          ring.material.opacity = life * 0.95;
-          ring.scale.setScalar(2.1 - life * 1.35);
-        }
+    }
+    for (const { ring, halo, start, end, lot } of this.signals) {
+      ring.visible = end > now;
+      halo.visible = ring.visible && Boolean(lot);
+      if (!ring.visible) continue;
+      if (lot) {
+        const size = this.motion ? Math.min(1, (now - start) / 0.35) : 1;
+        const fade = Math.min(1, (end - now) / 0.45);
+        ring.material.opacity = fade;
+        ring.scale.setScalar(1.5 + size * 1.3);
+        halo.material.opacity = fade * (this.motion ? 0.69 : 0.45);
+        halo.scale.set(2.8 + size * 0.5, 2.35 + size * 0.4, 1);
+      } else {
+        const life = (end - now) / 0.62;
+        ring.material.opacity = life * 0.95;
+        ring.scale.setScalar(2.1 - life * 1.35);
       }
     }
     if (this.guests) for (const guest of this.guests) {

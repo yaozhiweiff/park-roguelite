@@ -1,6 +1,6 @@
 import { maps, pathX } from "./maps.js";
 
-export const startingCoins = 1800;
+const startingCoins = 1800;
 export const interestRate = 0.10;
 export const priceIncrease = 0.05;
 export const maxRank = 6;
@@ -36,7 +36,7 @@ export const buffs = {
 };
 
 const levelList = [
-  ["欢乐开张", "straight", 2, 33, { gift: "swings" }, 904, 3200],
+  ["欢乐开张", "straight", 2, 33, {}, 904, 3200],
   ["甜甜小径", "double", 3, 48, {}, 326, 4200],
   ["双路试胆", "double", 3, 60, {}, 547, 4900],
   ["叮当木马", "triple", 4, 76, { gift: "carousel" }, 188, 7400],
@@ -53,6 +53,7 @@ const introductoryFacilities = ["cups", "swings", "slide"];
 export const levels = levelList.map(([title, mapId, days, visitors, trait, seed, goal], index) => ({
   id: index + 1, title, map: maps[mapId], days, visitors, trait, seed, goal,
   thresholds: [goal, goal * 1.25, goal * 1.5],
+  startingCoins: index === 0 ? 2100 : startingCoins,
   facilities: index === 0 ? introductoryFacilities : Object.keys(cards),
   shopBuffs: index >= 3 ? Object.keys(buffs) : [],
   facilityThresholds: index === 0 ? { slide: 15, cups: 20 } : {},
@@ -213,6 +214,7 @@ function planTours(layout, level, ranks, activeBuffs) {
       stops.push({
         ...stop, type: "visit", score: total(state.stats),
         text: `${attributeNames[card.stat]} +${points}${relay ? " · 接力 +8" : ""}`,
+        conditionMet: Boolean(card.needs && thresholdFor(id, activeBuffs, level)),
         relay, gag: id === "photo" && state.popcorn,
       });
       if (id === "snack") state.popcorn = true;

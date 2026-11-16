@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { buffs, cards, deal, interestFor, levels, maxRank, moods, priceOf, refreshPrice, simulate, starsFor, startingCoins } from "../src/game.js";
+import { buffs, cards, deal, interestFor, levels, maxRank, moods, priceOf, refreshPrice, simulate, starsFor } from "../src/game.js";
 import { pathX } from "../src/maps.js";
 
 const solutions = JSON.parse(readFileSync(new URL("./three-star-runs.json", import.meta.url)));
@@ -16,7 +16,7 @@ for (const { id, revenue: recordedRevenue, replay } of solutions) {
   const buffs = new Set();
   const slots = new Set(level.map.lots.map((lot) => lot.id));
   let revenue = 0;
-  let wallet = startingCoins;
+  let wallet = level.startingCoins;
   let guests = 0;
   assert.equal(replay.length, level.days);
 
@@ -86,6 +86,18 @@ for (const { id, revenue: recordedRevenue, replay } of solutions) {
 }
 
 const testLevel = levels[0];
+assert.equal(testLevel.trait.gift, undefined);
+const tutorialRanks = { swings: 1, slide: 1, cups: 1 };
+const tutorialLayout = { welcome: "swings", middle: "slide", farewell: "cups" };
+const tutorialWave = simulate(tutorialLayout, testLevel, 1, tutorialRanks, new Set(), true);
+for (const id of ["slide", "cups"]) {
+  assert.equal(tutorialWave.events.filter((event) => event.id === id && event.conditionMet).length, tutorialWave.results.count);
+}
+assert.ok(tutorialWave.events.every((event) => event.id !== "swings" || !event.conditionMet));
+const missedWave = simulate({ middle: "slide" }, testLevel, 1, { slide: 1 }, new Set(), true);
+assert.equal(missedWave.events.filter((event) => event.id === "slide" && event.type === "miss").length, missedWave.results.count);
+assert.ok(missedWave.events.every((event) => !event.conditionMet));
+
 for (const [score, payout] of [[99, 150], [100, 200], [100.5, 200], [101, 201], [125.5, 225]]) {
   const level = { ...testLevel, trait: { stat: "joy", points: score } };
   const { results, events } = simulate({}, level, 1, {}, new Set(), true);

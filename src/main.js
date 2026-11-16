@@ -1,6 +1,6 @@
 import "./style.css";
 import { animateLevelPark } from "./level-park-motion.js";
-import { buffs, cards, deal, emptyMoodCounts, facilityDescription, interestFor, levels, maxRank, moodFor, moods, priceIncrease, priceOf, refreshPrice, simulate, starsFor, startingCoins, strength, traitInfo } from "./game.js";
+import { buffs, cards, deal, emptyMoodCounts, facilityDescription, interestFor, levels, maxRank, moodFor, moods, priceIncrease, priceOf, refreshPrice, simulate, starsFor, strength, traitInfo } from "./game.js";
 import { ParkView } from "./park-view.js";
 
 const $ = (id) => document.getElementById(id);
@@ -154,7 +154,7 @@ function freshGame(candidate) {
   if (!unlocked(candidate)) return;
   level = candidate;
   day = 1;
-  wallet = startingCoins;
+  wallet = level.startingCoins;
   runTotals = { revenue: 0, happyBonus: 0, moods: emptyMoodCounts() };
   layout = {};
   stock = level.trait.gift ? [level.trait.gift] : [];
@@ -726,7 +726,7 @@ function onEvent(event) {
   } else if (event.type === "visit" || event.type === "bonus") {
     const changed = updateGuestMood(event.guest, event.score);
     view?.react({ ...event, milestone: changed?.id });
-    if (event.type === "bonus" || event.relay) view?.signal(event);
+    if (event.conditionMet || event.type === "bonus" || event.relay) view?.signal(event);
     if (event.guest % 3 === 0 || event.id === "photo") {
       float(changed?.id === "happy" ? { ...event, text: `开心啦！${event.text}` } : event);
       sound(changed?.id === "happy" && event.id !== "photo" ? "cheer" : event.id);
