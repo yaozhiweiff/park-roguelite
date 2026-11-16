@@ -142,6 +142,31 @@ button:disabled { cursor: default; }
   display: grid;
   place-items: center;
 }
+.guest-gain {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  translate: -50% 0;
+  padding: 2px 5px;
+  border: 1px solid #f1c55f;
+  border-radius: 8px;
+  background: #fff6cf;
+  color: #66440d;
+  box-shadow: 0 1px 4px #51401752;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.15;
+  white-space: nowrap;
+  animation: guest-gain-rise .72s ease-out both;
+}
+@keyframes guest-gain-rise {
+  from { transform: translateY(2px); }
+  70% { opacity: 1; }
+  to { transform: translateY(-16px); opacity: 0; }
+}
+@keyframes guest-gain-still {
+  from, to { opacity: 1; }
+}
 .mood-badge {
   --mood-size: 20px;
   --mood-color: #e56c60;
@@ -897,4 +922,5 @@ button:disabled { cursor: default; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0s !important; }
+  .guest-gain { animation-name: guest-gain-still; }
 }

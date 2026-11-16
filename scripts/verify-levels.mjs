@@ -90,9 +90,15 @@ assert.equal(testLevel.trait.gift, undefined);
 const tutorialRanks = { swings: 1, slide: 1, cups: 1 };
 const tutorialLayout = { welcome: "swings", middle: "slide", farewell: "cups" };
 const tutorialWave = simulate(tutorialLayout, testLevel, 1, tutorialRanks, new Set(), true);
-for (const id of ["slide", "cups"]) {
-  assert.equal(tutorialWave.events.filter((event) => event.id === id && event.conditionMet).length, tutorialWave.results.count);
+for (const [id, label] of [["slide", "欢乐 +20"], ["cups", "刺激 +17.5"]]) {
+  const gains = tutorialWave.events.filter((event) => event.id === id && event.conditionMet);
+  assert.equal(new Set(gains.map((event) => event.guest)).size, tutorialWave.results.count);
+  assert.ok(gains.every((event) => event.text === label));
 }
+const upgradedWave = simulate(tutorialLayout, testLevel, 1, { ...tutorialRanks, slide: 2 }, new Set(["relay"]), true);
+const upgradedGains = upgradedWave.events.filter((event) => event.id === "slide" && event.conditionMet);
+assert.equal(upgradedGains.length, upgradedWave.results.count);
+assert.ok(upgradedGains.every((event) => event.text === "欢乐 +24 · 接力 +8"));
 assert.ok(tutorialWave.events.every((event) => event.id !== "swings" || !event.conditionMet));
 const missedWave = simulate({ middle: "slide" }, testLevel, 1, { slide: 1 }, new Set(), true);
 assert.equal(missedWave.events.filter((event) => event.id === "slide" && event.type === "miss").length, missedWave.results.count);

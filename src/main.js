@@ -625,25 +625,56 @@ function displayNotice(text, duration = 1650) {
   noticeTimer = setTimeout(clearNotice, duration);
 }
 
-function float(event) {
-  if (!view?.width || prefersReducedMotion) return;
+function floatGuestGain(text, marker) {
+  const gain = document.createElement("span");
+  gain.className = "guest-gain";
+  gain.textContent = text;
+  gain.setAttribute("aria-hidden", "true");
+  marker.append(gain);
+  gain.addEventListener("animationend", () => gain.remove(), { once: true });
 
+  const box = gain.getBoundingClientRect();
+  const nearby = Array.from($("guest-moods").querySelectorAll(".guest-gain"))
+    .filter((other) => other !== gain && !other.parentElement.hidden)
+    .map((other) => other.getBoundingClientRect());
+  const bounds = $("map").getBoundingClientRect();
+  const side = Math.ceil(box.width * 0.75);
+  const rise = Math.ceil(box.height + 6);
+  const offset = [[0, 0], [-side, 0], [side, 0], [0, -rise], [-side, -rise], [side, -rise], [0, -2 * rise]]
+    .find(([x, y]) => box.left + x >= bounds.left + 3 && box.right + x <= bounds.right - 3 &&
+      nearby.every((other) => box.left + x >= other.right + 4 || box.right + x <= other.left - 4 ||
+        box.top + y >= other.bottom + 4 || box.bottom + y <= other.top - 4));
+  if (offset) {
+    gain.style.left = `calc(50% + ${offset[0]}px)`;
+    gain.style.bottom = `calc(100% + ${3 - offset[1]}px)`;
+  }
+}
+
+function float(event, marker) {
+  if (!view?.width) return;
+
+  if (marker) floatGuestGain(event.text, marker);
+  const photoFlash = event.id === "photo" && event.type === "visit";
+  if (prefersReducedMotion || (marker && !photoFlash)) return;
   const point = Number.isFinite(event.z)
     ? view.project(event.x + (event.guest % 2 ? 0.26 : -0.24), event.type === "visit" ? 1.8 : 1.25, event.z)
     : view.project(0.8, 1.09, level.map.nodes.exit[1] + 0.45);
-  const item = document.createElement("span");
-  item.className = `float ${event.id ?? "coins"} ${event.type}`;
-  item.textContent = event.text ?? `+${event.coins}`;
-  item.style.left = `${point.x}px`;
-  item.style.top = `${point.y}px`;
-  $("effects").append(item);
-  item.addEventListener("animationend", () => item.remove(), { once: true });
-  if (event.id === "photo" && event.type === "visit") {
+  const effects = $("effects");
+  if (!marker) {
+    const item = document.createElement("span");
+    item.className = `float ${event.id ?? "coins"} ${event.type}`;
+    item.textContent = event.text ?? `+${event.coins}`;
+    item.style.left = `${point.x}px`;
+    item.style.top = `${point.y}px`;
+    effects.append(item);
+    item.addEventListener("animationend", () => item.remove(), { once: true });
+  }
+  if (photoFlash) {
     const flash = document.createElement("i");
     flash.className = "flash";
-    flash.style.left = item.style.left;
-    flash.style.top = item.style.top;
-    $("effects").append(flash);
+    flash.style.left = `${point.x}px`;
+    flash.style.top = `${point.y}px`;
+    effects.append(flash);
     flash.addEventListener("animationend", () => flash.remove(), { once: true });
   }
 }
@@ -726,9 +757,14 @@ function onEvent(event) {
   } else if (event.type === "visit" || event.type === "bonus") {
     const changed = updateGuestMood(event.guest, event.score);
     view?.react({ ...event, milestone: changed?.id });
-    if (event.conditionMet || event.type === "bonus" || event.relay) view?.signal(event);
-    if (event.guest % 3 === 0 || event.id === "photo") {
+    const facilityTriggered = event.conditionMet || event.relay;
+    if (facilityTriggered || event.type === "bonus") view?.signal(event);
+    const sampled = event.guest % 3 === 0 || event.id === "photo";
+    if (facilityTriggered) float(event, guestMoods[event.guest]);
+    else if (sampled) {
       float(changed?.id === "happy" ? { ...event, text: `开心啦！${event.text}` } : event);
+    }
+    if (sampled) {
       sound(changed?.id === "happy" && event.id !== "photo" ? "cheer" : event.id);
     }
     if (event.gag && !photoShown) {
