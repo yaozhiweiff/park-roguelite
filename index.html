@@ -50,7 +50,10 @@
       <section class="tray" aria-label="营业面板">
         <div class="forecast">
           <div><span id="guest-caption">今日游客</span><strong id="guest-count"></strong></div>
-          <div><span id="revenue-caption">预计营收</span><strong id="revenue"></strong></div>
+          <div class="revenue-card">
+            <span id="revenue-caption">预计营收</span><strong id="revenue"></strong>
+            <span class="forecast-change" id="forecast-change" hidden></span>
+          </div>
         </div>
         <nav class="shop-nav" id="shop-nav" aria-label="购买与仓库" hidden>
           <button type="button" id="shop-tab">商店</button>
@@ -62,6 +65,11 @@
         <p class="hint" id="hint" role="status"></p>
         <button class="open" id="open" type="button">开园营业</button>
       </section>
+      <div class="payout-effects" id="payout-effects" aria-hidden="true">
+        <div class="payout-summary" id="payout-summary" hidden>
+          <strong id="payout-total"></strong><span id="payout-bonus" hidden></span>
+        </div>
+      </div>
       <dialog id="settlement" class="settlement" aria-labelledby="settlement-title">
         <h2 id="settlement-title"></h2>
         <div id="earned-stars" class="earned-stars" hidden></div>

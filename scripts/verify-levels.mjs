@@ -110,6 +110,7 @@ for (const [score, payout] of [[99, 150], [100, 200], [100.5, 200], [101, 201], 
   assert.equal(results.revenue, results.count * payout);
   assert.equal(results.happyBonus, results.count * Math.max(0, payout - 200));
   assert.ok(events.filter((event) => event.type === "exit").every((event) => event.coins === payout));
+  assert.equal(events.filter((event) => event.type === "exit").reduce((sum, event) => sum + event.happyBonus, 0), results.happyBonus);
 }
 
 for (const level of levels.slice(0, 3)) {

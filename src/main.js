@@ -11,6 +11,9 @@ const settlement = $("settlement");
 const money = new Intl.NumberFormat("zh-CN");
 const prefersReducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const format = (amount) => money.format(amount);
+const signed = (amount) => `${amount > 0 ? "+" : ""}${format(amount)}`;
+const payoutWindow = 0.68;
+const payoutDisplayMs = 740;
 
 let view;
 try {
@@ -42,10 +45,13 @@ let speed = 1;
 let nextEvent = 0;
 let exited;
 let sale;
+let pendingPayout;
+let payoutVisibleUntil;
 let photoShown;
 let photo;
 let guestMoods = [];
 let noticeTimer;
+let forecastTimer;
 let audio;
 let lastChime = 0;
 
@@ -114,6 +120,8 @@ function showMenu(preferredLevel) {
   view?.finish();
   clearGuestMoods();
   clearNotice();
+  clearForecastChange();
+  clearPayoutEffects();
   $("park").hidden = true;
   $("level-menu").hidden = false;
   const stars = Object.values(progress);
@@ -189,6 +197,7 @@ function prepareDay() {
   show = null;
   photo = null;
   clearNotice();
+  clearPayoutEffects();
   $("effects").replaceChildren();
   clearGuestMoods();
   refresh();
@@ -245,7 +254,7 @@ function buyAndPlace(id, slot) {
   panel = "shop";
   focus = null;
   clearNotice();
-  refresh();
+  refresh(true);
 }
 
 function refreshShop() {
@@ -272,6 +281,7 @@ function returnToStock(slot) {
 function tapLot(id) {
   if (phase !== "plan") return;
   const placed = layout[id];
+  let layoutChanged = false;
   if (focus?.source === "shop") {
     if (placed) displayNotice("新设施请放在空地", 1350);
     else buyAndPlace(focus.id, id);
@@ -284,12 +294,14 @@ function tapLot(id) {
     stock.splice(index, 1);
     if (placed) stock.push(placed);
     focus = { source: "lot", slot: id };
+    layoutChanged = true;
   } else if (focus?.source === "lot" && focus.moving) {
     const from = focus.slot;
     if (from !== id) {
       layout[id] = layout[from];
       if (placed) layout[from] = placed;
       else delete layout[from];
+      layoutChanged = true;
     }
     focus = { source: "lot", slot: id };
   } else if (placed) {
@@ -297,7 +309,7 @@ function tapLot(id) {
   } else {
     displayNotice(panel === "shop" ? "拖动设施卡，或点卡后再点空地" : "先选一张仓库里的设施卡", 1350);
   }
-  refresh();
+  refresh(layoutChanged);
 }
 
 function uiButton(title, action, className, disabled = false) {
@@ -561,7 +573,36 @@ function updateHud() {
   updateGoal();
 }
 
-function refresh() {
+function clearForecastChange() {
+  clearTimeout(forecastTimer);
+  $("forecast-change").hidden = true;
+  $("hint").removeAttribute("data-change");
+}
+
+function showForecastChange(previous, hint) {
+  const amount = preview.revenue - previous.revenue;
+  const affected = Object.keys(cards).filter((id) => cards[id].needs)
+    .map((id) => ({ id, change: (preview.visits[id] ?? 0) - (previous.visits[id] ?? 0) }))
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change) || b.change - a.change)[0];
+  const badge = $("forecast-change");
+  const direction = amount > 0 ? "up" : amount < 0 ? "down" : "same";
+  badge.textContent = `预计 ${signed(amount)}`;
+  badge.dataset.direction = direction;
+  badge.hidden = false;
+  const note = $("hint");
+  note.dataset.change = direction;
+  note.textContent = affected.change
+    ? `${affected.change > 0 ? "多" : "少"} ${Math.abs(affected.change)} 人触发${cards[affected.id].title}`
+    : `预计营收${amount ? `${amount > 0 ? "增加" : "减少"} ${format(Math.abs(amount))} 金币` : "相同"}`;
+  forecastTimer = setTimeout(() => {
+    clearForecastChange();
+    note.textContent = hint;
+  }, 3200);
+}
+
+function refresh(compareLayout = false) {
+  const previous = preview;
+  clearForecastChange();
   preview = simulate(layout, level, day, ranks, activeBuffs).results;
   updateHud();
   $("guest-caption").textContent = "今日游客";
@@ -577,6 +618,7 @@ function refresh() {
   else if (panel === "stock") hint = "仓库设施可摆放到任意地块";
   else if (lastInterest > 0) hint = `利息 +${format(lastInterest)} 已到账`;
   $("hint").textContent = hint;
+  if (compareLayout && previous) showForecastChange(previous, hint);
   open.textContent = "开园营业";
   open.disabled = Boolean(focus?.moving);
 }
@@ -625,6 +667,76 @@ function displayNotice(text, duration = 1650) {
   noticeTimer = setTimeout(clearNotice, duration);
 }
 
+function clearPayoutEffects() {
+  pendingPayout = null;
+  payoutVisibleUntil = 0;
+  const summary = $("payout-summary");
+  summary.hidden = true;
+  for (const animation of summary.getAnimations()) animation.cancel();
+  for (const coin of $("payout-effects").querySelectorAll(".payout-coin")) coin.remove();
+}
+
+function collectPayout() {
+  const { coins, bonus, count } = pendingPayout;
+  pendingPayout = null;
+  sale += coins;
+  const revenue = $("revenue");
+  revenue.textContent = format(sale);
+  updateGoal();
+  sound("exit");
+
+  const [exitX, exitZ] = level.map.nodes.exit;
+  const map = $("map");
+  const point = view?.width ? view.project(exitX, 0.9, exitZ + 0.50) : { x: map.clientWidth / 2, y: 110 };
+  const summary = $("payout-summary");
+  summary.style.left = `${Math.min(map.clientWidth - 68, point.x + 100)}px`;
+  summary.style.top = `${Math.max(80, point.y - 70)}px`;
+  $("payout-total").textContent = `${count} 人 · +${format(coins)} 金币`;
+  $("payout-bonus").textContent = `额外 +${format(bonus)} 金币`;
+  $("payout-bonus").hidden = bonus === 0;
+  summary.hidden = false;
+  for (const animation of summary.getAnimations()) animation.cancel();
+  const message = summary.animate(prefersReducedMotion
+    ? [{ opacity: 1 }, { opacity: 1 }]
+    : [{ opacity: 1, scale: 0.92 }, { opacity: 1, scale: 1, offset: 0.16 }, { opacity: 1, offset: 0.84 }, { opacity: 0 }],
+  { duration: payoutDisplayMs });
+  message.onfinish = () => { summary.hidden = true; };
+  payoutVisibleUntil = performance.now() + payoutDisplayMs;
+  if (prefersReducedMotion) return;
+
+  const parkBounds = $("park").getBoundingClientRect();
+  const target = revenue.getBoundingClientRect();
+  const dx = target.left + target.width / 2 - parkBounds.left - point.x;
+  const dy = target.top + target.height / 2 - parkBounds.top - point.y;
+  const pieces = Math.min(6, count + 2);
+  for (let index = 0; index < pieces; index++) {
+    const coin = document.createElement("i");
+    const spread = index - (pieces - 1) / 2;
+    coin.className = "payout-coin";
+    coin.style.left = `${point.x}px`;
+    coin.style.top = `${point.y}px`;
+    $("payout-effects").append(coin);
+    const animation = coin.animate([
+      { transform: "translate(0, 0) scale(.6)", opacity: 0 },
+      { transform: `translate(${spread * 12}px, ${-22 + Math.abs(spread) * 3}px) scale(1)`, opacity: 1, offset: 0.25 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.45)`, opacity: 0.25 },
+    ], { duration: 450, delay: index * 33, easing: "ease-in-out", fill: "backwards" });
+    animation.onfinish = () => coin.remove();
+  }
+  revenue.animate([{ scale: 1 }, { scale: 1.18, color: "#a56a10" }, { scale: 1 }], { duration: 260, delay: 360 });
+}
+
+function recordExit(event) {
+  if (pendingPayout && event.time >= pendingPayout.until) collectPayout();
+  pendingPayout ??= { until: event.time + payoutWindow, coins: 0, bonus: 0, count: 0 };
+  pendingPayout.coins += event.coins;
+  pendingPayout.bonus += event.happyBonus;
+  pendingPayout.count++;
+  exited++;
+  $("guest-count").textContent = `${exited} / ${show.results.count} 人`;
+  if (exited === show.results.count) collectPayout();
+}
+
 function floatGuestGain(text, marker) {
   const gain = document.createElement("span");
   gain.className = "guest-gain";
@@ -656,14 +768,12 @@ function float(event, marker) {
   if (marker) floatGuestGain(event.text, marker);
   const photoFlash = event.id === "photo" && event.type === "visit";
   if (prefersReducedMotion || (marker && !photoFlash)) return;
-  const point = Number.isFinite(event.z)
-    ? view.project(event.x + (event.guest % 2 ? 0.26 : -0.24), event.type === "visit" ? 1.8 : 1.25, event.z)
-    : view.project(0.8, 1.09, level.map.nodes.exit[1] + 0.45);
+  const point = view.project(event.x + (event.guest % 2 ? 0.26 : -0.24), event.type === "visit" ? 1.8 : 1.25, event.z);
   const effects = $("effects");
   if (!marker) {
     const item = document.createElement("span");
-    item.className = `float ${event.id ?? "coins"} ${event.type}`;
-    item.textContent = event.text ?? `+${event.coins}`;
+    item.className = `float ${event.id} ${event.type}`;
+    item.textContent = event.text;
     item.style.left = `${point.x}px`;
     item.style.top = `${point.y}px`;
     effects.append(item);
@@ -699,17 +809,27 @@ function createGuestMoods(guests) {
     markers.append(marker);
     return marker;
   });
-  for (const guest of guests) updateGuestMood(guest.index, guest.initialScore);
+  for (const guest of guests) updateGuestMood(guest.index, guest.initialScore, false);
 }
 
-function updateGuestMood(index, score) {
+function updateGuestMood(index, score, animate = true) {
   const marker = guestMoods[index];
   if (!marker) return;
   const badge = marker.firstElementChild;
   const mood = moodFor(score);
   const changed = badge.dataset.mood !== mood.id;
-  if (changed && !prefersReducedMotion) {
-    badge.animate([{ scale: 1 }, { scale: 1.3 }, { scale: 1 }], { duration: 300, easing: "ease-out" });
+  if (changed && animate && !prefersReducedMotion) {
+    const happy = mood.id === "happy";
+    badge.animate([{ scale: 0.92 }, { scale: happy ? 1.72 : 1.25 }, { scale: 1 }],
+      { duration: happy ? 480 : 270, easing: "ease-out" });
+    if (happy) {
+      const cheer = document.createElement("span");
+      cheer.className = "guest-cheer";
+      cheer.textContent = "✦";
+      cheer.setAttribute("aria-hidden", "true");
+      marker.append(cheer);
+      cheer.addEventListener("animationend", () => cheer.remove(), { once: true });
+    }
   }
   badge.dataset.mood = mood.id;
   badge.style.setProperty("--progress", `${Math.min(100, score)}%`);
@@ -745,15 +865,7 @@ function onEvent(event) {
   } else if (event.type === "farewell") {
     view?.react({ ...event, id: "farewell" });
   } else if (event.type === "exit") {
-    sale += event.coins;
-    exited++;
-    $("guest-count").textContent = `${exited} / ${show.results.count} 人`;
-    $("revenue").textContent = format(sale);
-    updateGoal();
-    if (event.guest % 3 === 0) {
-      float(event);
-      sound("exit");
-    }
+    recordExit(event);
   } else if (event.type === "visit" || event.type === "bonus") {
     const changed = updateGuestMood(event.guest, event.score);
     view?.react({ ...event, milestone: changed?.id });
@@ -764,8 +876,15 @@ function onEvent(event) {
     else if (sampled) {
       float(changed?.id === "happy" ? { ...event, text: `开心啦！${event.text}` } : event);
     }
-    if (sampled) {
-      sound(changed?.id === "happy" && event.id !== "photo" ? "cheer" : event.id);
+    if (changed?.id === "happy") sound("cheer");
+    else if (sampled) sound(event.id);
+    if (event.id === "slide" && !prefersReducedMotion) {
+      const marker = guestMoods[event.guest];
+      const splash = document.createElement("span");
+      splash.className = "guest-splash";
+      splash.setAttribute("aria-hidden", "true");
+      marker.append(splash);
+      splash.addEventListener("animationend", () => splash.remove(), { once: true });
     }
     if (event.gag && !photoShown) {
       photoShown = true;
@@ -782,6 +901,8 @@ function startDay() {
   if (phase !== "plan" || focus?.moving) return;
   wakeSound();
   clearNotice();
+  clearForecastChange();
+  clearPayoutEffects();
   reserve = wallet;
   interestDue = interestFor(reserve, day, level);
   phase = "run";
@@ -948,7 +1069,8 @@ function frame(now) {
     while (nextEvent < show.events.length && show.events[nextEvent].time <= elapsed) {
       onEvent(show.events[nextEvent++]);
     }
-    if (elapsed >= show.duration) endDay();
+    if (pendingPayout && elapsed >= pendingPayout.until) collectPayout();
+    if (elapsed >= show.duration && now >= payoutVisibleUntil) endDay();
   }
   previousFrame = now;
   if (phase !== "menu" && view?.width) view.draw((now - firstFrame) / 1000, elapsed);

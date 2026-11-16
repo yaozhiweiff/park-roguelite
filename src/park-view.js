@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { moodFor } from "./game.js";
 import { pathX } from "./maps.js";
 import { bar, box, cyl, facility, gate, makeGuest, material, mesh, shadow, sphere } from "./models.js";
 
@@ -420,6 +421,8 @@ export class ParkView {
       model.bucket.visible = false;
       model.candy.visible = false;
       model.reaction = null;
+      model.mood = moodFor(guest.initialScore).id;
+      model.moodTime = -Infinity;
       model.segment = 0;
     });
   }
@@ -432,6 +435,10 @@ export class ParkView {
       model.candy.visible = false;
     }
     if (event.type === "visit" && event.id === "candy" && !model.bucket.visible) model.candy.visible = true;
+    if (event.milestone) {
+      model.mood = event.milestone;
+      model.moodTime = event.time;
+    }
     model.reaction = event;
   }
 
@@ -546,36 +553,43 @@ export class ParkView {
       const walking = step.from !== step.to;
       const currentX = pathX(step.lane, z);
       const nextX = pathX(step.lane, z - 0.12);
-      const beat = elapsed * (guest.member === 2 ? 17.4 : 12.5) + guest.index * 0.9;
+      const lifted = this.motion && model.mood !== "unhappy";
+      const beat = elapsed * (lifted ? 19 : 12.5) + guest.index * 0.9;
+      const moodElapsed = elapsed - model.moodTime;
+      const dash = lifted && model.mood === "neutral" && moodElapsed < 0.62;
+      const jumpElapsed = moodElapsed - 0.06 * guest.member;
+      const happy = lifted && model.mood === "happy" && jumpElapsed >= 0 && jumpElapsed < 0.56;
       const t = model.reaction ? elapsed - model.reaction.time : 3;
       const reacting = t >= 0 && t < 0.78;
       const id = reacting ? model.reaction.id : null;
       const missed = reacting && model.reaction.type === "miss";
       const panic = !missed && (id === "ghost" || id === "coaster" || id === "slide");
       const pose = !missed && id === "photo" && t < 0.62;
-      const happy = reacting && model.reaction.milestone === "happy";
       const bounce = !missed && (id === "trampoline" || id === "stamps" || id === "bookends");
       const spin = !missed && id === "cups" ? Math.min(t / 0.48, 1) * Math.PI * 2 : 0;
+      const stumble = this.motion && !missed && id === "cups" && t > 0.48 ? Math.sin((t - 0.48) / 0.30 * Math.PI * 2) : 0;
       const wave = id === "farewell" && model.reaction.mood !== "unhappy";
       const point = id === "turn" && t < 0.38;
       const armsUp = happy || bounce || (panic && guest.member !== 1);
       const carrying = model.bucket.visible || model.candy.visible;
       const spread = (guest.member - 1) * 0.37;
-      const lateral = spread + (step.facility ? (guest.member === 1 ? 0.43 : -0.43) * Math.sin(phase * Math.PI) : 0);
+      const lateral = spread + 0.22 * stumble + (step.facility ? (guest.member === 1 ? 0.43 : -0.43) * Math.sin(phase * Math.PI) : 0);
       model.group.position.set(currentX + lateral + (walking ? Math.sin(beat) * 0.034 : 0), 0.027, z);
       model.group.rotation.y = Math.atan2(nextX - currentX, -0.12) + (pose ? 1.58 : wave ? 0.94 : 0) + spin;
-      model.body.position.y = walking ? 0.034 * Math.abs(Math.sin(beat)) : 0.01;
-      if (bounce) model.body.position.y += Math.abs(Math.sin(t * 11)) * Math.max(0, 0.40 - t * 0.35);
-      else if (armsUp && t < 0.48) model.body.position.y += Math.sin(t / 0.48 * Math.PI) * (happy ? 0.30 : 0.18);
-      model.body.rotation.x = missed ? 0.24 * Math.sin(t / 0.78 * Math.PI) : id === "rest" ? -0.16 * Math.sin(t / 0.78 * Math.PI) : 0;
-      model.body.rotation.z = panic ? Math.sin(beat * 1.65) * 0.16 : Math.sin(beat) * 0.040;
-      model.hat.position.y = 0.14 + (armsUp ? Math.max(0, 0.18 * Math.sin(t / 0.72 * Math.PI)) : 0);
+      model.body.position.y = walking ? (lifted ? 0.078 : 0.034) * Math.abs(Math.sin(beat)) : 0.01;
+      if (happy) model.body.position.y += Math.sin(jumpElapsed / 0.56 * Math.PI) * 0.64;
+      else if (bounce) model.body.position.y += Math.abs(Math.sin(t * 11)) * Math.max(0, 0.40 - t * 0.35);
+      else if (armsUp && t < 0.48) model.body.position.y += Math.sin(t / 0.48 * Math.PI) * 0.18;
+      model.body.rotation.x = missed ? 0.24 * Math.sin(t / 0.78 * Math.PI) : id === "rest" ? -0.16 * Math.sin(t / 0.78 * Math.PI) : dash ? 0.18 : 0;
+      model.body.rotation.z = stumble * 0.23 + (panic ? Math.sin(beat * 1.65) * 0.16 : Math.sin(beat) * 0.040);
+      model.hat.position.y = 0.14 + (happy ? 0.09 * Math.sin(jumpElapsed / 0.56 * Math.PI) : armsUp ? Math.max(0, 0.18 * Math.sin(t / 0.72 * Math.PI)) : 0);
+      model.head.rotation.x = this.motion && model.mood === "unhappy" ? 0.22 : dash ? -0.17 : 0;
       model.head.rotation.y = point ? (model.reaction.direction < 0 ? 0.54 : -0.54) : missed || id === "wheel" ? Math.sin(beat * 0.57) * 0.31 : 0;
       for (let side = 0; side < 2; side++) {
         const swing = Math.sin(beat + side * Math.PI);
-        model.legs[side].rotation.x = walking ? swing * (panic ? 0.78 : 0.53) : 0;
+        model.legs[side].rotation.x = happy ? 0.46 : walking ? swing * (panic || dash ? 0.78 : 0.53) : 0;
         const gesture = (wave && side === 1) || (point && side === (model.reaction.direction < 0 ? 0 : 1));
-        model.arms[side].rotation.x = gesture ? -1.69 : carrying ? -0.88 : armsUp ? -1.75 : walking ? -swing * 0.44 : 0;
+        model.arms[side].rotation.x = happy ? -2.20 : gesture ? -1.69 : carrying ? -0.88 : armsUp ? -1.75 : walking ? -swing * (dash ? 0.64 : 0.44) : 0;
         model.arms[side].rotation.z = gesture ? (side ? 1 : -1) * (0.88 + Math.sin(beat) * 0.20) : (side ? 1 : -1) * (armsUp ? 0.66 : 0.09);
       }
     }

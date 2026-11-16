@@ -273,7 +273,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
       results.revenue += coins * amount;
       results.happyBonus += happyBonus * amount;
       results.moods[mood.id] += amount;
-      if (show) for (let index = 0; index < amount; index++) guests.push({ itinerary, mood, coins });
+      if (show) for (let index = 0; index < amount; index++) guests.push({ itinerary, mood, coins, happyBonus });
       return;
     }
     const combined = weights.reduce((sum, weight) => sum + weight, 0);
@@ -336,7 +336,7 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
       }
       travel(end);
     });
-    events.push({ type: "exit", time, guest: index, coins: guest.coins });
+    events.push({ type: "exit", time, guest: index, coins: guest.coins, happyBonus: guest.happyBonus });
     Object.assign(guest, { index, start, member, group, segments, initialScore, end: time });
     delete guest.itinerary;
   });
