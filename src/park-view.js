@@ -165,7 +165,7 @@ function decorate(map) {
   const garden = new THREE.Group();
   const wind = new THREE.Group();
   root.add(garden, wind);
-  const roadWidth = map.id === "double" ? 2.12 : map.id === "triple" ? 1.78 : 1.65;
+  const roadWidth = map.id === "straight" ? 2.55 : map.id === "double" ? 2.12 : map.id === "triple" ? 1.78 : 1.65;
   const [top, edge] = map.colors;
   const entryZ = map.nodes.entry[1];
   const exitZ = map.nodes.exit[1];
@@ -234,7 +234,7 @@ function decorate(map) {
     flags.set(id, { group, banner });
   }
   const stamp = new THREE.Group();
-  const [mergeX, mergeZ] = map.nodes.merge;
+  const [mergeX, mergeZ] = map.nodes.merge ?? map.nodes.exit;
   stamp.position.set(mergeX - 0.88, 0, mergeZ + 0.23);
   cyl(stamp, 0.28, 0.33, 0.13, 0xe4a3cd, 0, 0.095, 0);
   box(stamp, 0.42, 0.32, 0.38, 0xc181d7, 0, 0.28, 0);

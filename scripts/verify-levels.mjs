@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { cards, deal, interestFor, levels, maxRank, moods, priceOf, refreshPrice, simulate, starsFor, startingCoins } from "../src/game.js";
+import { buffs, cards, deal, interestFor, levels, maxRank, moods, priceOf, refreshPrice, simulate, starsFor, startingCoins } from "../src/game.js";
 import { pathX } from "../src/maps.js";
 
 const solutions = JSON.parse(readFileSync(new URL("./three-star-runs.json", import.meta.url)));
 assert.deepEqual(solutions.map(({ id }) => id), levels.map(({ id }) => id));
 assert.deepEqual([0, 1, 2].map(refreshPrice), [200, 300, 400]);
+assert.deepEqual(levels.map(({ days }) => days), [2, 3, 3, 4, 4, 4, 5, 5, 5, 5]);
+assert.deepEqual(levels.map(({ map }) => map.id),
+  ["straight", "double", "double", "triple", "triple", "triple", "cascade", "cascade", "cascade", "cascade"]);
 
 for (const { id, revenue: recordedRevenue, replay } of solutions) {
   const level = levels[id - 1];
@@ -53,8 +56,10 @@ for (const { id, revenue: recordedRevenue, replay } of solutions) {
     assert.equal(exits.reduce((sum, event) => sum + event.coins, 0), forecast.revenue);
     const baseRevenue = moods.reduce((sum, mood) => sum + forecast.moods[mood.id] * mood.coins, 0);
     assert.equal(forecast.revenue, baseRevenue + forecast.happyBonus);
-    for (const [route, count] of Object.entries(forecast.routes)) {
-      assert.equal(wave.events.filter((event) => event.type === "branch" && event.route === route).length, count);
+    const turns = wave.events.filter((event) => event.type === "branch");
+    if (id === 1) assert.deepEqual(turns, []);
+    else for (const [route, count] of Object.entries(forecast.routes)) {
+      assert.equal(turns.filter((event) => event.route === route).length, count);
     }
     assert.equal(Object.values(forecast.routes).reduce((sum, count) => sum + count, 0), forecast.count);
     for (const guest of wave.guests) {
@@ -89,8 +94,20 @@ for (const [score, payout] of [[99, 150], [100, 200], [100.5, 200], [101, 201], 
   assert.ok(events.filter((event) => event.type === "exit").every((event) => event.coins === payout));
 }
 
+for (const level of levels.slice(0, 3)) {
+  assert.equal(level.trait.stat, undefined);
+  for (let day = 1; day <= level.days; day++) {
+    for (let refreshes = 0; refreshes < 10; refreshes++) {
+      const offers = deal(level, day, refreshes, {}, new Set());
+      assert.ok(offers.every((id) => !buffs[id]));
+      if (level.id === 1) assert.deepEqual(offers.sort(), ["cups", "slide", "swings"]);
+    }
+  }
+}
+const buffLevel = levels[3];
+assert.ok(deal(buffLevel, 1, 0, {}, new Set()).some((id) => buffs[id]));
 for (let refreshes = 0; refreshes < 30; refreshes++) {
-  const offers = deal(testLevel, 1, refreshes, { coaster: maxRank }, new Set(["relay"]));
+  const offers = deal(buffLevel, 1, refreshes, { coaster: maxRank }, new Set(["relay"]));
   assert.equal(new Set(offers).size, 3);
   assert.ok(!offers.includes("coaster") && !offers.includes("relay"));
 }

@@ -40,6 +40,16 @@ const pair = (id, title, first, last) => [
 ];
 
 export const maps = {
+  straight: map("straight", "直道乐园", 9.6, {
+    entry: [0, 7.05], exit: [0, -6.45],
+  }, [
+    lane("straight", "entry", "exit", [], [
+      ["welcome", 3.95, "入口格"],
+      ["middle", 0.15, "中途格"],
+      ["farewell", -3.65, "出口前格"],
+    ]),
+  ], [0xf8bd8e, 0xe0a66e]),
+
   double: map("double", "双路草坪", 9.6, {
     entry: [0, 7.05], fork: [0, 3.18], merge: [0, -4.04], exit: [0, -6.45],
   }, [

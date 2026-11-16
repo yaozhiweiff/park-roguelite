@@ -36,21 +36,26 @@ export const buffs = {
 };
 
 const levelList = [
-  ["欢乐开张", "double", 5, 72, { stat: "joy", points: 35 }, 904, 8800],
-  ["甜甜小径", "double", 5, 89, { stat: "bliss", points: 40 }, 326, 12000],
-  ["三岔试胆", "triple", 5, 106, { stat: "thrill", points: 40 }, 547, 14400],
-  ["叮当木马", "triple", 6, 124, { gift: "carousel" }, 188, 15000],
-  ["花园合照", "triple", 6, 143, { stat: "bliss", points: 45 }, 673, 20200],
-  ["惊叫连连", "triple", 6, 161, { gift: "coaster" }, 834, 21200],
-  ["乐谷派对", "cascade", 7, 180, { stat: "joy", points: 40 }, 251, 24800],
-  ["云上集市", "cascade", 7, 198, { gift: "wheel" }, 462, 27200],
-  ["极速乐谷", "cascade", 7, 216, { stat: "thrill", points: 45 }, 756, 31000],
-  ["压轴演出", "cascade", 7, 235, { gift: "stage" }, 981, 31600],
+  ["欢乐开张", "straight", 2, 33, { gift: "swings" }, 904, 3200],
+  ["甜甜小径", "double", 3, 48, {}, 326, 4200],
+  ["双路试胆", "double", 3, 60, {}, 547, 4900],
+  ["叮当木马", "triple", 4, 76, { gift: "carousel" }, 188, 7400],
+  ["花园合照", "triple", 4, 89, { stat: "bliss", points: 45 }, 673, 9600],
+  ["惊叫连连", "triple", 4, 103, { gift: "coaster" }, 834, 10800],
+  ["乐谷派对", "cascade", 5, 124, { stat: "joy", points: 40 }, 251, 15200],
+  ["云上集市", "cascade", 5, 138, { gift: "wheel" }, 462, 16800],
+  ["极速乐谷", "cascade", 5, 154, { stat: "thrill", points: 45 }, 756, 19000],
+  ["压轴演出", "cascade", 5, 170, { gift: "stage" }, 981, 20800],
 ];
+
+const introductoryFacilities = ["cups", "swings", "slide"];
 
 export const levels = levelList.map(([title, mapId, days, visitors, trait, seed, goal], index) => ({
   id: index + 1, title, map: maps[mapId], days, visitors, trait, seed, goal,
   thresholds: [goal, goal * 1.25, goal * 1.5],
+  facilities: index === 0 ? introductoryFacilities : Object.keys(cards),
+  shopBuffs: index >= 3 ? Object.keys(buffs) : [],
+  facilityThresholds: index === 0 ? { slide: 15, cups: 20 } : {},
 }));
 
 export function starsFor(level, revenue) {
@@ -61,6 +66,7 @@ export function traitInfo(trait) {
   if (trait.gift) {
     return { title: "赠送设施", description: `${cards[trait.gift].title} Lv.1 已放入仓库，可自行摆放`, art: trait.gift };
   }
+  if (!trait.stat) return null;
   return {
     title: `入园${attributeNames[trait.stat]} +${trait.points}`,
     description: `本关每位游客入园时，初始${attributeNames[trait.stat]} +${trait.points}`,
@@ -88,9 +94,9 @@ function random(seed) {
 
 export function deal(level, day, refreshes, ranks, activeBuffs, held = []) {
   const next = random(Math.imul(level.seed + day * 1429, 27644437) ^ Math.imul(refreshes + 1, 1013904223));
-  const facilities = Object.keys(cards).filter((id) => (ranks[id] ?? 0) < maxRank);
+  const facilities = level.facilities.filter((id) => (ranks[id] ?? 0) < maxRank);
   const upgrades = facilities.filter((id) => ranks[id]);
-  const offers = [...facilities, ...Object.keys(buffs).filter((id) => !activeBuffs.has(id))]
+  const offers = [...facilities, ...level.shopBuffs.filter((id) => !activeBuffs.has(id))]
     .filter((id) => !held.includes(id));
   const chosen = Array.from({ length: 3 }, (_, slot) => held[slot]);
   for (let slot = 0; slot < chosen.length && offers.length; slot++) {
@@ -112,11 +118,14 @@ export function guestCount(level, day) {
 export const strength = (rank) => (40 + Math.min(maxRank, rank) * 10);
 const scalePoints = (points, rank) => points * strength(rank) / 100;
 
-export function facilityDescription(id, rank) {
+export function facilityDescription(id, rank, level, activeBuffs) {
   const card = cards[id];
   const value = scalePoints(card.points, rank);
   const gain = `${attributeNames[card.stat]} +${value}`;
-  if (card.needs) return `${attributeNames[card.needs]} ≥${card.threshold}，${gain}`;
+  if (card.needs) {
+    const threshold = thresholdFor(id, activeBuffs, level);
+    return threshold ? `${attributeNames[card.needs]} ≥${threshold}，${gain}` : gain;
+  }
   if (card.reducedAt !== undefined) {
     return `${attributeNames[card.stat]} <${card.reducedAt} 时 +${value}，否则 +${scalePoints(card.reducedPoints, rank)}`;
   }
@@ -146,15 +155,15 @@ function total(stats) {
 }
 
 
-function thresholdFor(id, activeBuffs) {
+function thresholdFor(id, activeBuffs, level) {
   if ((id === "snack" || id === "candy") && activeBuffs.has("tasting")) return 0;
   if (id === "photo" && activeBuffs.has("portraits")) return 30;
-  return cards[id].threshold;
+  return level.facilityThresholds[id] ?? cards[id].threshold;
 }
 
-function visitPoints(id, stats, rank, activeBuffs) {
+function visitPoints(id, stats, rank, activeBuffs, level) {
   const card = cards[id];
-  if (card.needs && stats[card.needs] < thresholdFor(id, activeBuffs)) return 0;
+  if (card.needs && stats[card.needs] < thresholdFor(id, activeBuffs, level)) return 0;
   const reduced = card.reducedAt !== undefined && stats[card.stat] >= card.reducedAt;
   return scalePoints(reduced ? card.reducedPoints : card.points, rank);
 }
@@ -189,7 +198,7 @@ function planTours(layout, level, ranks, activeBuffs) {
       const id = layout[lot.id];
       if (!id) continue;
       const card = cards[id];
-      const points = visitPoints(id, state.stats, ranks[id], activeBuffs);
+      const points = visitPoints(id, state.stats, ranks[id], activeBuffs, level);
       const stop = { id, lot: lot.id, x: lot.x, z: lot.z };
       if (!points) {
         stops.push({ ...stop, type: "miss", text: `${attributeNames[card.needs]}不足` });
@@ -237,8 +246,9 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
   const count = guestCount(level, day);
   const { map } = level;
   const { first, initialScore } = planTours(layout, level, ranks, activeBuffs);
+  const finalLanes = map.lanes.filter((lane) => lane.to === "merge" || (lane.from === "entry" && lane.to === "exit"));
   const results = {
-    count, routes: Object.fromEntries(map.lanes.filter((lane) => lane.to === "merge").map(({ id }) => [id, 0])),
+    count, routes: Object.fromEntries(finalLanes.map(({ id }) => [id, 0])),
     revenue: 0, happyBonus: 0, moods: emptyMoodCounts(), visits: {}, photoGag: false,
   };
   const guests = [];
@@ -310,8 +320,6 @@ export function simulate(layout, level, day, ranks, activeBuffs, show = false) {
         const guided = activeBuffs.has("flags") && previous.children[index].hits > Math.min(...previous.children.map((child) => child.hits));
         const direction = Math.sign(pathX(lane, branchZ - 0.8) - x);
         events.push({ type: "branch", time, guest: guestIndex, route: lane.id, direction, guided, x, z });
-      } else if (lane.id in results.routes) {
-        events.push({ type: "branch", time, guest: guestIndex, route: lane.id });
       }
       for (const stop of stops) {
         travel(stop.z);

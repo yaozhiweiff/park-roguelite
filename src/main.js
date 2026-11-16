@@ -96,7 +96,12 @@ function inspectLevel(candidate) {
   $("level-title").textContent = `第 ${candidate.id} 关 · ${candidate.title}`;
   $("level-summary").textContent = `${candidate.map.title} · ${candidate.days} 天 · ${candidate.visitors} 位游客`;
   $("level-best").innerHTML = `<span>最高星级</span>${starsMarkup(stars)}`;
-  $("level-trait").innerHTML = `${icon(trait.art)}<div><strong>初始 BUFF · ${trait.title}</strong><span>${trait.description}</span></div>`;
+  const traitRow = $("level-trait");
+  traitRow.hidden = !trait;
+  if (trait) {
+    const label = candidate.trait.gift ? "开局设施" : `初始 BUFF · ${trait.title}`;
+    traitRow.innerHTML = `${icon(trait.art)}<div><strong>${label}</strong><span>${trait.description}</span></div>`;
+  }
   $("level-goals").innerHTML = candidate.thresholds.map((target, index) =>
     `<div><span><i aria-hidden="true">★</i> ${index + 1} 星</span>
       <strong>${format(target)} <small>金币</small></strong></div>`).join("");
@@ -312,7 +317,7 @@ function drawStockCard(id) {
     refresh();
   }, "card");
   button.dataset.card = id;
-  button.innerHTML = `${icon(id)}<strong>${card.title} Lv.${ranks[id]}</strong><small>${facilityDescription(id, ranks[id])}</small>`;
+  button.innerHTML = `${icon(id)}<strong>${card.title} Lv.${ranks[id]}</strong><small>${facilityDescription(id, ranks[id], level, activeBuffs)}</small>`;
   draft.append(button);
 }
 
@@ -399,7 +404,7 @@ function drawShopCard(id) {
     }
   }, "card shop-card", disabled);
   const rank = purchased ? ranks[id] : Math.min(maxRank, (ranks[id] ?? 0) + 1);
-  const description = isBuff ? card.description : facilityDescription(id, rank);
+  const description = isBuff ? card.description : facilityDescription(id, rank, level, activeBuffs);
   const action = isBuff ? "购买并生效" : isUpgrade ? `升级至 Lv.${rank}` : "购买并摆放";
   button.dataset.card = id;
   if (!isBuff && !isUpgrade) button.setAttribute("aria-pressed", String(focus?.source === "shop" && focus.id === id));
@@ -442,7 +447,7 @@ function drawDetail() {
   const box = document.createElement("div");
   box.className = "chosen";
   box.innerHTML = `${icon(id)}<div><strong>${cards[id].title} · Lv.${rank}</strong>
-    <span>${facilityDescription(id, rank)}</span><span>${rank === maxRank ? "已满级" : `效果 ${strength(rank)}%`}</span></div>`;
+    <span>${facilityDescription(id, rank, level, activeBuffs)}</span><span>${rank === maxRank ? "已满级" : `效果 ${strength(rank)}%`}</span></div>`;
   if (focus.source === "lot") {
     const slot = focus.slot;
     box.append(uiButton("收回仓库", () => returnToStock(slot), "back-to-draft"));
@@ -479,7 +484,7 @@ function drawDraft() {
   } else {
     const empty = document.createElement("p");
     empty.className = "empty-stock";
-    empty.textContent = panel === "shop" ? "设施已满级，BUFF 已购齐" : "仓库暂无设施";
+    empty.textContent = panel === "shop" ? "暂无可购买的商品" : "仓库暂无设施";
     draft.append(empty);
   }
 }
@@ -540,8 +545,6 @@ function updateHud() {
   $("day").textContent = `第 ${day} / ${level.days} 天`;
   $("wallet").textContent = format(wallet);
   const trait = traitInfo(level.trait);
-  const traitButton = uiButton("", () => showBuff(trait.title, trait.description), "trait-chip");
-  traitButton.innerHTML = `${icon(trait.art)}<span>${trait.title}</span>`;
   const buttons = Array.from(activeBuffs, (id) => {
     const buff = buffs[id];
     const button = uiButton("", () => showBuff(buff.title, buff.description), "buff-chip");
@@ -549,7 +552,12 @@ function updateHud() {
     button.innerHTML = icon(id);
     return button;
   });
-  $("active-buffs").replaceChildren(traitButton, ...buttons);
+  if (trait) {
+    const traitButton = uiButton("", () => showBuff(trait.title, trait.description), "trait-chip");
+    traitButton.innerHTML = `${icon(trait.art)}<span>${trait.title}</span>`;
+    buttons.unshift(traitButton);
+  }
+  $("active-buffs").replaceChildren(...buttons);
   updateGoal();
 }
 
@@ -566,7 +574,7 @@ function refresh() {
   if (focus?.moving) hint = "点另一格换位，或再点自己取消";
   else if (focus?.source === "shop") hint = "点地图上的空地购买并摆放";
   else if (focus?.source === "stock") hint = "点空地摆放，点已有设施则换回仓库";
-  else if (panel === "stock") hint = "仓库设施可摆放到任意路线";
+  else if (panel === "stock") hint = "仓库设施可摆放到任意地块";
   else if (lastInterest > 0) hint = `利息 +${format(lastInterest)} 已到账`;
   $("hint").textContent = hint;
   open.textContent = "开园营业";
